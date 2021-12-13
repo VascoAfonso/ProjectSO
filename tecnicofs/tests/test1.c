@@ -31,7 +31,8 @@ int main() {
     assert(strcmp(buffer, str) == 0);
 
     assert(tfs_close(f) != -1);
-
+    f = tfs_copy_to_external_fs(path, "test-tfs.txt");
+    assert(f != -1);
     printf("Successful test.\n");
 
     return 0;
