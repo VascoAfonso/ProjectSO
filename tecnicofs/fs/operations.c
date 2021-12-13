@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//tetse\
 int tfs_init() {
     state_init();
 
