@@ -183,8 +183,8 @@ int tfs_copy_to_external_fs(char const *source_path, char const *dest_path){
     f = fopen(dest_path, "w");
 
     ssize_t bytes_read;
-    char *buffer;
-    buffer = (char *) malloc(sizeof(char)*128);
+    char buffer[128];
+    
 
    /* read the contents of the file */
    while((bytes_read = tfs_read(fd, buffer, sizeof(char)*128)) != 0){
@@ -194,7 +194,6 @@ int tfs_copy_to_external_fs(char const *source_path, char const *dest_path){
     fwrite(buffer, 1, (size_t) bytes_read, f);
     }
     
-    free(buffer);
     fclose(f);
     return 0;
 }
