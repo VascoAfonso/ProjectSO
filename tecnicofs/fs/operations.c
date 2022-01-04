@@ -98,6 +98,29 @@ int tfs_open(char const *name, int flags) {
 
 int tfs_close(int fhandle) { return remove_from_open_file_table(fhandle); }
 
+
+void file_block_alloc(int index, inode_t inode){
+
+    if (index <= FILEBLOCKS){
+        inode->i_data_block][index] = data_block_alloc();
+        return;
+    }
+
+    if (index == FILEBLOCKS + 1){
+        inode->i_data_block[FILEBLOCKS + 1] = data_block_alloc();
+    }
+    void * block = inode->i_data_block[FILEBLOCKS + 1];
+    int diff = index - FILEBLOCKS - 1;
+
+    memcpy(block + diff * (sizeof(int) + 1), data_block_alloc(), sizeof(int));
+    
+
+
+    /*TODO macacada*/
+
+}
+
+
 ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
     open_file_entry_t *file = get_open_file_entry(fhandle);
     if (file == NULL) {
@@ -111,23 +134,59 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
     }
 
     /* Determine how many bytes to write */
-    if (to_write + file->of_offset > BLOCK_SIZE) {
+    /*if (to_write + file->of_offset > BLOCK_SIZE) {
         to_write = BLOCK_SIZE - file->of_offset;
+    }*/
+
+    int current_block = file->of_offset / BLOCK_SIZE;
+    int block_to_alocate = (file->of_offset + to_write) / BLOCK_SIZE;
+    int i;
+
+    for (i = current_block + 1; i < block_to_alocate; i++){
+
+       file_block_alloc(i, inode);
     }
 
+
     if (to_write > 0) {
-        if (inode->i_size == 0) {
+        if (inode->i_size == 0) {*/
             /* If empty file, allocate new block */
             inode->i_data_block = data_block_alloc();
         }
 
-        void *block = data_block_get(inode->i_data_block);
+        void *block = data_block_get(inode->i_data_block[0]);
         if (block == NULL) {
             return -1;
         }
 
         /* Perform the actual write */
-        memcpy(block + file->of_offset, buffer, to_write);
+        /*memcpy(block + file->of_offset, buffer, to_write);*/
+        int left_to_write = to_write;
+        int wrote = 0;
+        i = current_block;
+        while (left_to_write > 0) {
+            if (i < FILEBLOCKS){
+                block = data_block_get(inode->i_data_block[i]);
+                size_t block_offset = file->of_offset - (BLOCK_SIZE * i);
+                
+            }else{
+                void * main_block = data_block_get(inode->i_data_block[FILEBLOCKS]);
+                memcpy(block, main_block + ((i - FILEBLOCKS - 1) * (sizeof(int) + 1)), sizeof(int));
+               
+            }
+            if (BLOCK_SIZE - block_offset >= left_to_write){
+                memcpy(block + block_offset, buffer + wrote, BLOCK_SIZE - block_offset);
+                wrote += BLOCK_SIZE - block_offset;
+                left_to_write -= BLOCK_SIZE - block_offset;
+            }else{
+                memcpy(block + block_offset, buffer + wrote, left_to_write);
+                wrote += left_to_write;
+                left_to_write = 0;             
+            }
+
+            i++;
+        }
+
 
         /* The offset associated with the file handle is
          * incremented accordingly */
