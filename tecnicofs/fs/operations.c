@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 int tfs_init() {
     state_init();
 
@@ -158,10 +159,6 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
         to_read = len;
     }
 
-    if (file->of_offset + to_read >= BLOCK_SIZE) {
-        return -1;
-    }
-
     if (to_read > 0) {
         void *block = data_block_get(inode->i_data_block);
         if (block == NULL) {
@@ -177,6 +174,8 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 
     return (ssize_t)to_read;
 }
+    
+
 int tfs_copy_to_external_fs(char const *source_path, char const *dest_path){
     FILE *f;
     int fd = tfs_open(source_path, 0);
@@ -197,3 +196,9 @@ int tfs_copy_to_external_fs(char const *source_path, char const *dest_path){
     fclose(f);
     return 0;
 }
+
+
+
+
+
+
