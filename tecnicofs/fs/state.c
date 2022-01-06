@@ -155,7 +155,7 @@ int inode_delete(int inumber) {
             if (data_block_free(inode_table[inumber].i_data_block[i]) == -1) {
                 return -1;
             }
-        }
+        }\
     }
 
     return 0;
