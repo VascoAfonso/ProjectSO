@@ -298,6 +298,8 @@ int tfs_copy_to_external_fs(char const *source_path, char const *dest_path){
     FILE *f;
     int fd = tfs_open(source_path, 0);
     f = fopen(dest_path, "w");
+    if(f==NULL)
+        return -1;
 
     ssize_t bytes_read;
     char buffer[128];
