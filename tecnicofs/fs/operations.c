@@ -130,6 +130,9 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
 
     /* From the open file table entry, we get the inode */
     inode_t *inode = inode_get(file->of_inumber);
+    
+    
+    pthread_rwlock_wrlock(&inode->rwlock);
     if (inode == NULL) {
         return -1;
     }
@@ -213,7 +216,7 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
             inode->i_size = file->of_offset;
         }
     }
-
+    pthread_rwlock_unlock(&inode->rwlock);
     return (ssize_t)to_write;
 }
 
@@ -229,6 +232,8 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     if (inode == NULL) {
         return -1;
     }
+
+    pthread_rwlock_rdlock(&inode->rwlock);
 
 
 
@@ -297,6 +302,7 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
         file->of_offset += to_read;
     }
 
+    pthread_rwlock_unlock(&inode->rwlock);
     return (ssize_t)to_read;
 }
     

@@ -100,6 +100,7 @@ int inode_create(inode_type n_type) {
             freeinode_ts[inumber] = TAKEN;
             insert_delay(); // simulate storage access delay (to i-node)
             inode_table[inumber].i_node_type = n_type;
+            pthread_rwlock_init(&inode_table[inumber].rwlock, NULL);
 
             if (n_type == T_DIRECTORY) {
                 /* Initializes directory (filling its block with empty
@@ -315,6 +316,7 @@ void *data_block_get(int block_number) {
  * Returns: file handle if successful, -1 otherwise
  */
 int add_to_open_file_table(int inumber, size_t offset) {
+    /*MUTEX LOCK AQUI*/
     for (int i = 0; i < MAX_OPEN_FILES; i++) {
         if (free_open_file_entries[i] == FREE) {
             free_open_file_entries[i] = TAKEN;
@@ -323,6 +325,7 @@ int add_to_open_file_table(int inumber, size_t offset) {
             return i;
         }
     }
+    /*MUTEX UNLOCK AQUI*/
     return -1;
 }
 
@@ -332,11 +335,14 @@ int add_to_open_file_table(int inumber, size_t offset) {
  * Returns 0 is success, -1 otherwise
  */
 int remove_from_open_file_table(int fhandle) {
+    /*MUTEX LOCK AQUI*/
     if (!valid_file_handle(fhandle) ||
         free_open_file_entries[fhandle] != TAKEN) {
         return -1;
     }
     free_open_file_entries[fhandle] = FREE;
+    
+    /*MUTEX UNLOCK AQUI*/
     return 0;
 }
 
@@ -346,8 +352,10 @@ int remove_from_open_file_table(int fhandle) {
  * Returns: pointer to the entry if sucessful, NULL otherwise
  */
 open_file_entry_t *get_open_file_entry(int fhandle) {
+    /*MUTEX LOCK AQUI*/
     if (!valid_file_handle(fhandle)) {
         return NULL;
     }
+    /*MUTEX UNLOCK AQUI*/
     return &open_file_table[fhandle];
 }
