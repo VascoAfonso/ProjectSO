@@ -108,11 +108,11 @@ void file_block_alloc(int index, inode_t * inode){
         return;
     }
 
-    if (index == FILEBLOCKS + 1){
-        inode->i_data_block[FILEBLOCKS + 1] = data_block_alloc();
+    if (index == FILEBLOCKS){
+        inode->i_data_block[FILEBLOCKS] = data_block_alloc();
     }
-    void * block = data_block_get(inode->i_data_block[FILEBLOCKS + 1]);
-    int diff = index - FILEBLOCKS - 1;
+    void * block = data_block_get(inode->i_data_block[FILEBLOCKS]);
+    int diff = index - FILEBLOCKS;
     int i_block = data_block_alloc();
     memcpy(block + diff * (int)sizeof(int), &i_block, sizeof(int));
     
@@ -189,7 +189,7 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
 
             
 
-            if (BLOCK_SIZE - block_offset < left_to_write){
+            if (BLOCK_SIZE - block_offset <= left_to_write){
                 memcpy(block + block_offset, buffer + wrote, BLOCK_SIZE - block_offset);
                 wrote += (size_t)BLOCK_SIZE - block_offset;
                 left_to_write -= BLOCK_SIZE - block_offset;
@@ -268,7 +268,10 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
                 memcpy(block, main_block + ((i - FILEBLOCKS - 1) * (int)sizeof(int)), sizeof(int));
                
             }
-            if (BLOCK_SIZE - block_offset < left_to_read){
+
+            printf("%d\n",i);
+
+            if (BLOCK_SIZE - block_offset <= left_to_read){
                 memcpy(buffer, block + block_offset, BLOCK_SIZE - block_offset);
                 read += (size_t)BLOCK_SIZE - block_offset;
                 left_to_read -= BLOCK_SIZE - block_offset;
