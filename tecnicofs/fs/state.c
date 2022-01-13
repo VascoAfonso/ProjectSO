@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
 
 /* Persistent FS state  (in reality, it should be maintained in secondary
  * memory; for simplicity, this project maintains it in primary memory) */
@@ -21,6 +22,11 @@ static char free_blocks[DATA_BLOCKS];
 
 static open_file_entry_t open_file_table[MAX_OPEN_FILES];
 static char free_open_file_entries[MAX_OPEN_FILES];
+
+
+pthread_mutex_t  * add_entry_lock;
+pthread_rwlock_t * file_handle_lock;
+
 
 static inline bool valid_inumber(int inumber) {
     return inumber >= 0 && inumber < INODE_TABLE_SIZE;
@@ -50,6 +56,8 @@ static inline bool valid_file_handle(int file_handle) {
  */
 static void touch_all_memory() { __asm volatile("" : : : "memory"); }
 
+
+
 /*
  * Auxiliary function to insert a delay.
  * Used in accesses to persistent FS state as a way of emulating access
@@ -76,6 +84,7 @@ void state_init() {
     for (size_t i = 0; i < MAX_OPEN_FILES; i++) {
         free_open_file_entries[i] = FREE;
     }
+    pthread_mutex_init(add_entry_lock, NULL);
 }
 
 void state_destroy() { /* nothing to do */
@@ -147,6 +156,9 @@ int inode_delete(int inumber) {
     insert_delay();
     insert_delay();
 
+    /*Lock for write*/
+    pthread_rwlock_wrlock(&inode_table[inumber].rwlock);
+
     if (!valid_inumber(inumber) || freeinode_ts[inumber] == FREE) {
         return -1;
     }
@@ -154,12 +166,33 @@ int inode_delete(int inumber) {
     freeinode_ts[inumber] = FREE;
 
     if (inode_table[inumber].i_size > 0) {
-        for (int i = 0; i < FILEBLOCKS + 1; i++){
+        int current_block = (int)(inode_table[inumber].i_size - 1) / BLOCK_SIZE;
+
+        int i;
+        for (i = 0; i < current_block + 1 || i < FILEBLOCKS ; i++){
             if (data_block_free(inode_table[inumber].i_data_block[i]) == -1) {
                 return -1;
             }
         }
+        if (i != current_block) return 0;  
+
+        void * main_block = data_block_get(inode_table[inumber].i_data_block[FILEBLOCKS]);
+
+        for (i = i; i < current_block + 1; i++){
+            int n;
+            memcpy(&n, main_block + ((i - FILEBLOCKS) * (int)sizeof(int)), sizeof(int));
+            if (data_block_free(n) == -1) {
+                return -1;
+            }
+        }
+        if (data_block_free(inode_table[inumber].i_data_block[FILEBLOCKS]) == -1) {
+            return -1;
+        }
+
+        
+
     }
+    pthread_rwlock_unlock(&inode_table[inumber].rwlock);
 
     return 0;
 }
@@ -317,6 +350,7 @@ void *data_block_get(int block_number) {
  */
 int add_to_open_file_table(int inumber, size_t offset) {
     /*MUTEX LOCK AQUI*/
+    pthread_mutex_lock(add_entry_lock);
     for (int i = 0; i < MAX_OPEN_FILES; i++) {
         if (free_open_file_entries[i] == FREE) {
             free_open_file_entries[i] = TAKEN;
@@ -325,6 +359,7 @@ int add_to_open_file_table(int inumber, size_t offset) {
             return i;
         }
     }
+    pthread_mutex_unlock(add_entry_lock);
     /*MUTEX UNLOCK AQUI*/
     return -1;
 }
@@ -336,12 +371,13 @@ int add_to_open_file_table(int inumber, size_t offset) {
  */
 int remove_from_open_file_table(int fhandle) {
     /*MUTEX LOCK AQUI*/
+    pthread_rwlock_wrlock(file_handle_lock);
     if (!valid_file_handle(fhandle) ||
         free_open_file_entries[fhandle] != TAKEN) {
         return -1;
     }
     free_open_file_entries[fhandle] = FREE;
-    
+    pthread_rwlock_unlock(file_handle_lock);
     /*MUTEX UNLOCK AQUI*/
     return 0;
 }
@@ -353,9 +389,12 @@ int remove_from_open_file_table(int fhandle) {
  */
 open_file_entry_t *get_open_file_entry(int fhandle) {
     /*MUTEX LOCK AQUI*/
+    pthread_rwlock_rdlock(file_handle_lock);
     if (!valid_file_handle(fhandle)) {
         return NULL;
     }
+
+    pthread_rwlock_unlock(file_handle_lock);
     /*MUTEX UNLOCK AQUI*/
     return &open_file_table[fhandle];
 }
