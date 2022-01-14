@@ -76,6 +76,7 @@ int tfs_open(char const *name, int flags) {
         /* The file doesn't exist; the flags specify that it should be created*/
         /* Create inode */
         inum = inode_create(T_FILE);
+        
         if (inum == -1) {
             return -1;
         }
@@ -133,8 +134,9 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
     inode_t *inode = inode_get(file->of_inumber);
     
     
-    pthread_rwlock_wrlock(&inode->rwlock);
+    pthread_rwlock_wrlock(&(inode->rwlock));
     if (inode == NULL) {
+        pthread_rwlock_unlock(&inode->rwlock);
         return -1;
     }
 
@@ -162,6 +164,7 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
 
         void *block = data_block_get(inode->i_data_block[0]);
         if (block == NULL) {
+            pthread_rwlock_unlock(&inode->rwlock);
             return -1;
         }
 
@@ -223,6 +226,8 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
 
 
 ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
+
+
     open_file_entry_t *file = get_open_file_entry(fhandle);
     if (file == NULL) {
         return -1;
@@ -233,7 +238,6 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     if (inode == NULL) {
         return -1;
     }
-
     pthread_rwlock_rdlock(&inode->rwlock);
 
 
@@ -251,6 +255,7 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     if (to_read > 0) {
         void *block = data_block_get(inode->i_data_block[0]);
         if (block == NULL) {
+            pthread_rwlock_unlock(&inode->rwlock);
             return -1;
         }
 
@@ -280,7 +285,7 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
             }
 
         
-
+            printf("%d\n", inode->i_data_block[i] );
             if (BLOCK_SIZE - block_offset <= left_to_read){
                 memcpy(buffer, block + block_offset, BLOCK_SIZE - block_offset);
                 read += (size_t)BLOCK_SIZE - block_offset;
@@ -294,7 +299,6 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
             i++;
 
         }
-
 
         /* Perform the actual read */
         /*memcpy(buffer, block + file->of_offset, to_read);*/
@@ -317,6 +321,8 @@ int tfs_copy_to_external_fs(char const *source_path, char const *dest_path){
 
     ssize_t bytes_read;
     char buffer[128];
+
+    
     
 
    /* read the contents of the file */

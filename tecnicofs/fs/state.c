@@ -24,8 +24,9 @@ static open_file_entry_t open_file_table[MAX_OPEN_FILES];
 static char free_open_file_entries[MAX_OPEN_FILES];
 
 
-pthread_mutex_t  * add_entry_lock;
-pthread_rwlock_t * file_handle_lock;
+pthread_mutex_t  add_entry_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_rwlock_t file_handle_lock = PTHREAD_RWLOCK_INITIALIZER;
+pthread_mutex_t data_block_lock = PTHREAD_MUTEX_INITIALIZER;
 
 
 static inline bool valid_inumber(int inumber) {
@@ -84,7 +85,6 @@ void state_init() {
     for (size_t i = 0; i < MAX_OPEN_FILES; i++) {
         free_open_file_entries[i] = FREE;
     }
-    pthread_mutex_init(add_entry_lock, NULL);
 }
 
 void state_destroy() { /* nothing to do */
@@ -160,6 +160,7 @@ int inode_delete(int inumber) {
     pthread_rwlock_wrlock(&inode_table[inumber].rwlock);
 
     if (!valid_inumber(inumber) || freeinode_ts[inumber] == FREE) {
+        pthread_rwlock_unlock(&inode_table[inumber].rwlock);
         return -1;
     }
 
@@ -171,21 +172,26 @@ int inode_delete(int inumber) {
         int i;
         for (i = 0; i < current_block + 1 || i < FILEBLOCKS ; i++){
             if (data_block_free(inode_table[inumber].i_data_block[i]) == -1) {
+                pthread_rwlock_unlock(&inode_table[inumber].rwlock);
                 return -1;
             }
         }
-        if (i != current_block) return 0;  
-
+        if (i != current_block){
+            pthread_rwlock_unlock(&inode_table[inumber].rwlock);
+            return 0;  
+        }
         void * main_block = data_block_get(inode_table[inumber].i_data_block[FILEBLOCKS]);
 
         for (i = i; i < current_block + 1; i++){
             int n;
             memcpy(&n, main_block + ((i - FILEBLOCKS) * (int)sizeof(int)), sizeof(int));
             if (data_block_free(n) == -1) {
+                pthread_rwlock_unlock(&inode_table[inumber].rwlock);
                 return -1;
             }
         }
         if (data_block_free(inode_table[inumber].i_data_block[FILEBLOCKS]) == -1) {
+            pthread_rwlock_unlock(&inode_table[inumber].rwlock);
             return -1;
         }
 
@@ -300,6 +306,7 @@ int find_in_dir(int inumber, char const *sub_name) {
  * Returns: block index if successful, -1 otherwise
  */
 int data_block_alloc() {
+    pthread_mutex_lock(&data_block_lock);
     for (int i = 0; i < DATA_BLOCKS; i++) {
         if (i * (int) sizeof(allocation_state_t) % BLOCK_SIZE == 0) {
             insert_delay(); // simulate storage access delay to free_blocks
@@ -307,9 +314,11 @@ int data_block_alloc() {
 
         if (free_blocks[i] == FREE) {
             free_blocks[i] = TAKEN;
+            pthread_mutex_unlock(&data_block_lock);
             return i;
         }
     }
+    pthread_mutex_unlock(&data_block_lock);
     return -1;
 }
 
@@ -319,12 +328,15 @@ int data_block_alloc() {
  * Returns: 0 if success, -1 otherwise
  */
 int data_block_free(int block_number) {
+    pthread_mutex_lock(&data_block_lock);
     if (!valid_block_number(block_number)) {
+        pthread_mutex_unlock(&data_block_lock);
         return -1;
     }
 
     insert_delay(); // simulate storage access delay to free_blocks
     free_blocks[block_number] = FREE;
+    pthread_mutex_unlock(&data_block_lock);
     return 0;
 }
 
@@ -334,11 +346,14 @@ int data_block_free(int block_number) {
  * Returns: pointer to the first byte of the block, NULL otherwise
  */
 void *data_block_get(int block_number) {
+    pthread_mutex_lock(&data_block_lock);
     if (!valid_block_number(block_number)) {
+        pthread_mutex_unlock(&data_block_lock);
         return NULL;
     }
 
     insert_delay(); // simulate storage access delay to block
+    pthread_mutex_unlock(&data_block_lock);
     return &fs_data[block_number * BLOCK_SIZE];
 }
 
@@ -350,16 +365,17 @@ void *data_block_get(int block_number) {
  */
 int add_to_open_file_table(int inumber, size_t offset) {
     /*MUTEX LOCK AQUI*/
-    pthread_mutex_lock(add_entry_lock);
+    pthread_mutex_lock(&add_entry_lock);
     for (int i = 0; i < MAX_OPEN_FILES; i++) {
         if (free_open_file_entries[i] == FREE) {
             free_open_file_entries[i] = TAKEN;
             open_file_table[i].of_inumber = inumber;
             open_file_table[i].of_offset = offset;
+            pthread_mutex_unlock(&add_entry_lock);
             return i;
         }
     }
-    pthread_mutex_unlock(add_entry_lock);
+    pthread_mutex_unlock(&add_entry_lock);
     /*MUTEX UNLOCK AQUI*/
     return -1;
 }
@@ -371,13 +387,14 @@ int add_to_open_file_table(int inumber, size_t offset) {
  */
 int remove_from_open_file_table(int fhandle) {
     /*MUTEX LOCK AQUI*/
-    pthread_rwlock_wrlock(file_handle_lock);
+    pthread_rwlock_wrlock(&file_handle_lock);
     if (!valid_file_handle(fhandle) ||
         free_open_file_entries[fhandle] != TAKEN) {
+        pthread_rwlock_unlock(&file_handle_lock);
         return -1;
     }
     free_open_file_entries[fhandle] = FREE;
-    pthread_rwlock_unlock(file_handle_lock);
+    pthread_rwlock_unlock(&file_handle_lock);
     /*MUTEX UNLOCK AQUI*/
     return 0;
 }
@@ -389,12 +406,12 @@ int remove_from_open_file_table(int fhandle) {
  */
 open_file_entry_t *get_open_file_entry(int fhandle) {
     /*MUTEX LOCK AQUI*/
-    pthread_rwlock_rdlock(file_handle_lock);
+    pthread_rwlock_rdlock(&file_handle_lock);
     if (!valid_file_handle(fhandle)) {
         return NULL;
     }
 
-    pthread_rwlock_unlock(file_handle_lock);
+    pthread_rwlock_unlock(&file_handle_lock);
     /*MUTEX UNLOCK AQUI*/
     return &open_file_table[fhandle];
 }
