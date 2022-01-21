@@ -6,7 +6,7 @@
 
 #define N_THREADS 15
 #define COUNT 20
-#define SIZE 500
+#define SIZE 55
 
 void * func1(){
     char input[SIZE]; 

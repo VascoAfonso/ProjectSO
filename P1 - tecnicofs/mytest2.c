@@ -1,4 +1,6 @@
 #include "./fs/operations.h"
+
+#include "./fs/state.h"
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
@@ -32,7 +34,6 @@ void * func3(void * arguments){
 
     assert(fd != -1);
     for (int i = 0; i < COUNT; i++) {
-        printf("%s - %d\n",path, fd);
         assert(tfs_write(fd, input, size) == size);
     }
     assert(tfs_close(fd) != -1);
@@ -40,11 +41,8 @@ void * func3(void * arguments){
     assert(fd != -1 );
 
     for (int i = 0; i < COUNT; i++) {
-        assert(tfs_read(fd, output, size) == size);
-        printf("%s - %d\n",path, fd);
-        printf("Input  - %s\nOutput - %s\n", input, output);     
+        assert(tfs_read(fd, output, size) == size);    
         assert(memcmp(input, output, size) == 0);
-        /*if (memcmp(input, output, size) != 0) printf("AIUQUA|\n");*/
         
     }
     assert(tfs_close(fd) != -1);
@@ -55,6 +53,7 @@ void * func3(void * arguments){
 
 int main(){
 
+    pthread_t threads[N_THREADS];
 
     tfs_init();
 
@@ -62,17 +61,29 @@ int main(){
     strcpy(args[0].path,"/f1");
     strcpy(args[1].path,"/f2");
     strcpy(args[2].path, "/f3");
-    args[0].size = 256;
-    args[1].size = 513;
-    args[2].size = 1024;
+    args[0].size = 128;
+    args[1].size = 256;
+    args[2].size = 512;
     args[0].c = 'A';
     args[1].c = 'B';
     args[2].c = 'C';
 
-    func3(&args[0]);
-    func3(&args[1]);
-    func3(&args[2]);
-    
+
+    for (int i = 0; i < N_THREADS; i++){
+        if (pthread_create(&threads[i], NULL, func3, &args[i]) != 0) {
+            printf("Error creating thread.\n");
+            return -1;
+        }
+    }
+    for (int i = 0; i < N_THREADS; i++){
+        if(pthread_join(threads[i], NULL) != 0) {
+            printf("Error joining thred.\n");
+            return -1;
+        }
+    }
+
+
+
     printf("Successful Test!!!!\n");
 
     

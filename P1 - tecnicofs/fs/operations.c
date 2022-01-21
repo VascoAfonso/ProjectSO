@@ -75,8 +75,7 @@ int tfs_open(char const *name, int flags) {
     } else if (flags & TFS_O_CREAT) {
         /* The file doesn't exist; the flags specify that it should be created*/
         /* Create inode */
-        inum = inode_create(T_FILE);
-        
+        inum = inode_create(T_FILE);    
         if (inum == -1) {
             return -1;
         }
@@ -124,7 +123,6 @@ void file_block_alloc(int index, inode_t * inode){
 
 
 ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
-    /*MAYBE DONE*/
     open_file_entry_t *file = get_open_file_entry(fhandle);
     if (file == NULL) {
         return -1;
@@ -140,10 +138,6 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         return -1;
     }
 
-    /* Determine how many bytes to write */
-    /*if (to_write + file->of_offset > BLOCK_SIZE) {
-        to_write = BLOCK_SIZE - file->of_offset;
-    }*/
 
     int current_block = (int)(file->of_offset - 1) / BLOCK_SIZE;
 
@@ -171,7 +165,6 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         
 
         /* Perform the actual write */
-        /*memcpy(block + file->of_offset, buffer, to_write);*/
         size_t left_to_write = to_write;
         size_t wrote = 0;
         size_t block_offset;
@@ -193,7 +186,6 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
                 int n;
                 memcpy(&n, main_block + ((i - FILEBLOCKS) * (int)sizeof(int)), sizeof(int));
                 block = data_block_get(n);
-                /*printf("%d\n", n);*/
                
             }
 
@@ -285,7 +277,6 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
             }
 
         
-            printf("%d\n", inode->i_data_block[i] );
             if (BLOCK_SIZE - block_offset <= left_to_read){
                 memcpy(buffer, block + block_offset, BLOCK_SIZE - block_offset);
                 read += (size_t)BLOCK_SIZE - block_offset;
@@ -300,8 +291,6 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 
         }
 
-        /* Perform the actual read */
-        /*memcpy(buffer, block + file->of_offset, to_read);*/
         /* The offset associated with the file handle is
          * incremented accordingly */
         file->of_offset += to_read;
