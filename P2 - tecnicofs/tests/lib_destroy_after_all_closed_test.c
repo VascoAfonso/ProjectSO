@@ -44,7 +44,7 @@ int main() {
     assert(pthread_create(&t, NULL, fn_thread, NULL) == 0);
     assert(tfs_destroy_after_all_closed() != -1);
     assert(closed_file == 1);
-
+    
     // No need to join thread
     printf("Successful test.\n");
 

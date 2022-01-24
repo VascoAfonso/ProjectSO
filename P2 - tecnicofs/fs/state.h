@@ -46,6 +46,11 @@ int inode_create(inode_type n_type);
 int inode_delete(int inumber);
 inode_t *inode_get(int inumber);
 
+//OURS
+int is_open_file_table_empty();
+
+
+
 int clear_dir_entry(int inumber, int sub_inumber);
 int add_dir_entry(int inumber, int sub_inumber, char const *sub_name);
 int find_in_dir(int inumber, char const *sub_name);

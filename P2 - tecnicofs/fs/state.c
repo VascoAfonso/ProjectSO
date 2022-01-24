@@ -174,6 +174,16 @@ inode_t *inode_get(int inumber) {
     return &inode_table[inumber];
 }
 
+int is_open_file_table_empty(){
+
+    for (int i = 0; i < MAX_OPEN_FILES; i++){
+        if (free_open_file_entries[i] == TAKEN) return 0;
+
+    }
+    return 1;
+}
+
+
 /*
  * Adds an entry to the i-node directory data.
  * Input:
