@@ -7,6 +7,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
+int get_operation(char const * buffer)
+{
+    char op;
+    strcpy(op, buffer, sizeof(char));
+
+    return op - '0';
+}
+
+
 int main(int argc, char **argv) {
 
     if (argc < 2) {
@@ -17,8 +27,13 @@ int main(int argc, char **argv) {
     char *pipename = argv[1];
     printf("Starting TecnicoFS server with pipe called %s\n", pipename);
 
-    /* TO DO */
+
+    //Open pipe to read
+    
     int rx = open(pipename, O_RDONLY);
+
+
+
 
     
 
