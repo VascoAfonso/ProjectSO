@@ -7,12 +7,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 int sessions[S];
 
 void send_request(int tx, Payload * p){
 
     ssize_t ret = write(tx, p, sizeof(*p));
+    if (ret==-1) return;
 }
 
 int get_operation(Payload p)
@@ -34,7 +36,7 @@ void server_mount(Payload p){
 
     int tx = open(p.name, O_WRONLY);
     int id;
-    if (id = get_free_pos() == -1){
+    if ((id = get_free_pos()) == -1){
         //erro
         p.error = -1;
     }else{
@@ -91,9 +93,9 @@ void server_write(Payload p){
         p.error = -1;
     }else{
 
-        size_t written = tfs_write(p.fhandle, p.buffer, p.len);
+        ssize_t written = tfs_write(p.fhandle, p.buffer, (size_t) p.len);
         
-        p.error = written;
+        p.error = (int) written;
     }
     send_request(sessions[p.id], &p);
 
@@ -103,8 +105,8 @@ void server_read(Payload p){
     if (sessions[p.id] == -1){
         p.error = -1;
     }else{
-        size_t read = tfs_read(p.fhandle, p.buffer, p.len);
-        p.error = read;
+        ssize_t read = tfs_read(p.fhandle, p.buffer,(size_t) p.len);
+        p.error = (int)read;
     }
     send_request(sessions[p.id], &p);
 }
@@ -148,13 +150,14 @@ int main(int argc, char **argv) {
     //Open pipe to read
 
     int rx = open(pipename, O_RDONLY);
-    int ret = 0;
+    ssize_t ret = 0;
     Payload p;
-    Payload p_r;
+    //Payload p_r;
 
 
     while (1){
         ret = read(rx, &p, sizeof(Payload));
+        if(ret==-1) return -1;
         //printf("%s\n", p.name);
 
         int op = get_operation(p);
