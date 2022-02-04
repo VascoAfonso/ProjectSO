@@ -1,6 +1,11 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+
+#define BUFFER_SIZE (40)
+#define MAX_READ_SIZE (1024)
+#define S (1)
+
 /* tfs_open flags */
 enum {
     TFS_O_CREAT = 0b001,
@@ -18,5 +23,18 @@ enum {
     TFS_OP_CODE_READ = 6,
     TFS_OP_CODE_SHUTDOWN_AFTER_ALL_CLOSED = 7
 };
+
+typedef struct payload{
+
+    char op_code;
+    int id;
+    int fhandle;
+    int flags;
+    int len;
+    char name[BUFFER_SIZE];
+    char buffer[MAX_READ_SIZE+1];
+    int error;
+
+}Payload;
 
 #endif /* COMMON_H */

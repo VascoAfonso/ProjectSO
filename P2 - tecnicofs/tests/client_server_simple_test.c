@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
     assert(strcmp(buffer, str) == 0);
 
     assert(tfs_close(f) != -1);
-
+    tfs_close(f);
     assert(tfs_unmount() == 0);
 
     printf("Successful test.\n");

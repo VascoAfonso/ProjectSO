@@ -6,7 +6,12 @@
 #include <string.h>
 
 static pthread_mutex_t single_global_lock;
-static pthread_cond_t file_close_cond;sizeof(int)k, 0) != 0)
+static pthread_cond_t file_close_cond;
+
+int tfs_init() {
+    state_init();
+
+    if (pthread_mutex_init(&single_global_lock, 0) != 0)
         return -1;
 
 
